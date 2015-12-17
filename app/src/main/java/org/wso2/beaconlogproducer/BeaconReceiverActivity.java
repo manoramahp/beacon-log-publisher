@@ -10,6 +10,7 @@ import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Looper;
 import android.os.RemoteException;
 import android.util.Log;
 import android.widget.Toast;
@@ -33,13 +34,14 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class BeaconReceiverActivity extends Activity implements BeaconConsumer, GoogleApiClient.ConnectionCallbacks,GoogleApiClient.OnConnectionFailedListener, LocationListener {
+public class BeaconReceiverActivity extends Activity implements BeaconConsumer, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
     protected static final String TAG = "MonitoringActivity";
     private BeaconManager beaconManager;
     private Queue<BeaconDataRecord> queue;
@@ -47,9 +49,9 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     private double latitude, longitude;
 
     // Location
-   // private static final String TAG2=BeaconReceiverActivity.class.getSimpleName();
+    // private static final String TAG2=BeaconReceiverActivity.class.getSimpleName();
     private final static int PLAY_SERVICES_RESOLUTION_REQUEST = 1000;
-    private Location mLastLocation ;
+    private Location mLastLocation;
     private GoogleApiClient mGoogleApiClient;
     private LocationRequest mLocationRequest;
     private boolean mRequestingLocationUpdates = false;
@@ -58,24 +60,25 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     private static int FASTEST_INTERVAL = 5000;
     private static int DISPLACEMENT = 10;
 
-    Context context=this;
+    Context context = this;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_beacon_receiver);
-        queue = new ConcurrentLinkedQueue<BeaconDataRecord>();
+        try {
+            super.onCreate(savedInstanceState);
+            setContentView(R.layout.activity_beacon_receiver);
+            queue = new ConcurrentLinkedQueue<BeaconDataRecord>();
 
-        locationManager=(LocationManager)context.getSystemService(LOCATION_SERVICE);
-        checkPlayServices();
-        buildGoogleApiClient();
-        createLocationRequest();
-        mRequestingLocationUpdates = true;
+            locationManager = (LocationManager) context.getSystemService(LOCATION_SERVICE);
+            checkPlayServices();
+            buildGoogleApiClient();
+            createLocationRequest();
+            mRequestingLocationUpdates = true;
 
-        beaconManager = BeaconManager.getInstanceForApplication(this);
+            beaconManager = BeaconManager.getInstanceForApplication(this);
 //        beaconManager.setForegroundScanPeriod(5000l);
-        // To detect proprietary beacons, you must add a line like below corresponding to your beacon
-        // type.  Do a web search for "setBeaconLayout" to get the proper expression.
+            // To detect proprietary beacons, you must add a line like below corresponding to your beacon
+            // type.  Do a web search for "setBeaconLayout" to get the proper expression.
 //         beaconManager.getBeaconParsers().add(new BeaconParser().
 //                setBeaconLayout("m:2-3=beac,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
 
@@ -90,39 +93,33 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
 
 //        beaconManager.getBeaconParsers().add(new BeaconParser(). setBeaconLayout("m:0-3=4c000215,i:4-19,i:20-21,i:22-23,p:24-24"));
 
-        beaconManager.getBeaconParsers().add(new BeaconParser().
-                setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
+            beaconManager.getBeaconParsers().add(new BeaconParser().
+                    setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
 
-        beaconManager.setBackgroundScanPeriod(1000l);
-        beaconManager.setBackgroundBetweenScanPeriod(1000l);
-        try {
-            beaconManager.updateScanPeriods();
-        } catch (RemoteException e) {
-            Log.e("Error : beacon manager", e.getMessage());
+            beaconManager.bind(this);
+            ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+            scheduler.scheduleWithFixedDelay(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+//                        Looper.prepare();
+                        publishBeaconData();
+                    } catch (Throwable e) {
+                        Log.e("ERROR", e.getMessage());
+                    }
+                }
+            }, 0, 5, TimeUnit.SECONDS);
+        } catch (Throwable e) {
+            Log.e("ERROR On create", e.getMessage());
         }
-
-        beaconManager.bind(this);
-
-//        new Thread() {
-//            @Override
-//            public void run() {
-//                publishBeaconData();
-//            }
-//        }.start();
-
-        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-        scheduler.scheduleWithFixedDelay(new Runnable() {
-            @Override
-            public void run() {
-                publishBeaconData();
-            }
-        }, 0, 5, TimeUnit.SECONDS);
     }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
         beaconManager.unbind(this);
     }
+
     @Override
     public void onBeaconServiceConnect() {
 //        beaconManager.setBackgroundMode(true);
@@ -149,21 +146,32 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
 //        } catch (RemoteException e) {
 //            Log.e("Error monitoring", e.getMessage());
 //        }
-
+        try {
+            beaconManager.setBackgroundScanPeriod(1000l);
+            beaconManager.setBackgroundBetweenScanPeriod(1000l);
+            beaconManager.updateScanPeriods();
+        } catch (RemoteException e) {
+            Log.e("Error : update scan", e.getMessage());
+        }
         beaconManager.setRangeNotifier(new RangeNotifier() {
             @Override
             public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
-                if (beacons.size() > 0) {
-                    Log.i(TAG, "Reading from beacon");
+                try {
+                    if (beacons.size() > 0) {
+                        Log.i(TAG, "Reading from beacon");
 
-                    while (beacons.iterator().hasNext()) {
-                        Beacon beacon = beacons.iterator().next();
-                        BeaconDataRecord beaconDataRecord = new BeaconDataRecord();
-                        beaconDataRecord.setUuid(String.valueOf(beacon.getId1()));
-                        beaconDataRecord.setMajor(String.valueOf(beacon.getId2()));
-                        beaconDataRecord.setMinor(String.valueOf(beacon.getId3()));
-                        queue.add(beaconDataRecord);
+                        Iterator<Beacon> beaconIterator = beacons.iterator();
+                        while (beaconIterator.hasNext()) {
+                            Beacon beacon = beaconIterator.next();
+                            BeaconDataRecord beaconDataRecord = new BeaconDataRecord();
+                            beaconDataRecord.setUuid(String.valueOf(beacon.getId1()));
+                            beaconDataRecord.setMajor(String.valueOf(beacon.getId2()));
+                            beaconDataRecord.setMinor(String.valueOf(beacon.getId3()));
+                            queue.add(beaconDataRecord);
+                        }
                     }
+                } catch (Throwable e) {
+                    Log.e("Unexpected error", e.getMessage());
                 }
             }
         });
@@ -179,39 +187,41 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
         try {
             String logString = "";
 //            while (true) {
-                createLocationRequest();
-                showLocation();
+            createLocationRequest();
+            showLocation();
+            JSONObject jsonObj = new JSONObject();
+
+            if (mLastLocation != null) {
                 Double latitude = mLastLocation.getLatitude();
                 Double longitude = mLastLocation.getLongitude();
 
-                JSONObject jsonObj = new JSONObject();
 //                jsonObj.put("beaconUuid", "d3fbdbe3-e95b-41a4-8b73-8a02feb257ba");
 //                jsonObj.put("beaconMajor", "1");
 //                jsonObj.put("beaconMinor", "2");
                 jsonObj.put("timestamp", System.currentTimeMillis());
                 jsonObj.put("latitude", latitude);
                 jsonObj.put("longitude", longitude);
+            }
+            BeaconDataRecord record = queue.poll();
+            if (record != null) {
+                jsonObj.put("beaconUuid", record.getUuid());
+                jsonObj.put("beaconMajor", record.getMajor());
+                jsonObj.put("beaconMinor", record.getMinor());
+            }
+            logString = jsonObj.toString();
 
-                BeaconDataRecord record = queue.poll();
-                if (record != null) {
-                    jsonObj.put("beaconUuid", record.getUuid());
-                    jsonObj.put("beaconMajor", record.getMajor());
-                    jsonObj.put("beaconMinor", record.getMinor());
-                }
-                logString = jsonObj.toString();
-
-                File logFile = new File(Environment.getExternalStorageDirectory(), "beaconlog");
-                if (!logFile.exists()) {
-                    logFile.createNewFile();
-                }
-                //BufferedWriter for performance, true to set append to file flag
-                BufferedWriter buf = new BufferedWriter(new FileWriter(logFile, true));
-                buf.append(logString);
-                buf.newLine();
-                buf.flush();
-                buf.close();
-                sendBroadcast(new Intent(Intent.ACTION_MEDIA_MOUNTED,
-                        Uri.parse("file://" + Environment.getExternalStorageDirectory())));
+            File logFile = new File(Environment.getExternalStorageDirectory(), "beaconlog");
+            if (!logFile.exists()) {
+                logFile.createNewFile();
+            }
+            //BufferedWriter for performance, true to set append to file flag
+            BufferedWriter buf = new BufferedWriter(new FileWriter(logFile, true));
+            buf.append(logString);
+            buf.newLine();
+            buf.flush();
+            buf.close();
+//            sendBroadcast(new Intent(Intent.ACTION_MEDIA_MOUNTED,
+//                    Uri.parse("file://" + Environment.getExternalStorageDirectory())));
 //                Thread.sleep(1000);
 //            }
 
@@ -221,30 +231,29 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     }
 
     // Location
-    private void showLocation(){
+    private void showLocation() {
         mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-        if(mLastLocation!=null){
+        if (mLastLocation != null) {
 
             Double latitude = mLastLocation.getLatitude();
             Double longitude = mLastLocation.getLongitude();
-            Log.d("location ","Longitude : "+longitude+" , Latitude :"+latitude);
-        }
-        else{
-            Toast.makeText(getApplicationContext(),"Last Location is null",Toast.LENGTH_LONG).show();
-            Log.d("ERROR :","ERROR");
+            Log.d("location ", "Longitude : " + longitude + " , Latitude :" + latitude);
+        } else {
+//            Toast.makeText(getApplicationContext(), "Last Location is null", Toast.LENGTH_LONG).show();
+            Log.d("ERROR :", "ERROR");
         }
     }
 
-    protected synchronized void buildGoogleApiClient(){
+    protected synchronized void buildGoogleApiClient() {
         mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addConnectionCallbacks(this)
                 .addOnConnectionFailedListener(this)
-                .addApi(LocationServices.API).build();
+                .addApiIfAvailable(LocationServices.API).build();
     }
 
-    private boolean checkPlayServices(){
+    private boolean checkPlayServices() {
         int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
-        if(resultCode!= ConnectionResult.SUCCESS) {
+        if (resultCode != ConnectionResult.SUCCESS) {
             if (GooglePlayServicesUtil.isUserRecoverableError(resultCode)) {
                 GooglePlayServicesUtil.getErrorDialog(resultCode, this, PLAY_SERVICES_RESOLUTION_REQUEST).show();
             } else {
@@ -273,27 +282,28 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     }
 
     @Override
-    protected void onStart(){
+    protected void onStart() {
         super.onStart();
-        if(mGoogleApiClient != null){
+        if (mGoogleApiClient != null) {
             mGoogleApiClient.connect();
         }
     }
 
     @Override
-    protected void onResume(){
-        super.onResume();;
+    protected void onResume() {
+        super.onResume();
+        ;
         checkPlayServices();
     }
 
-    private void togglePeriodicLocationUpdates(){
-        if(!mRequestingLocationUpdates){
+    private void togglePeriodicLocationUpdates() {
+        if (!mRequestingLocationUpdates) {
             startLocationUpdates();
-            Log.d(TAG,"Periodic locaion updates started!");
+            Log.d(TAG, "Periodic locaion updates started!");
         }
     }
 
-    protected void createLocationRequest(){
+    protected void createLocationRequest() {
         mLocationRequest = new LocationRequest();
         mLocationRequest.setInterval(UPDATE_INTERVAL);
         mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
@@ -301,14 +311,14 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
         mLocationRequest.setSmallestDisplacement(DISPLACEMENT);
     }
 
-    protected void startLocationUpdates(){
+    protected void startLocationUpdates() {
         Intent alarm = new Intent(BeaconReceiverActivity.this, BeaconReceiverActivity.class);
         PendingIntent recurringAlarm =
                 PendingIntent.getBroadcast(context,
                         1,
                         alarm,
                         PendingIntent.FLAG_CANCEL_CURRENT);
-        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient,mLocationRequest, recurringAlarm);
+        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, recurringAlarm);
     }
 
     @Override
