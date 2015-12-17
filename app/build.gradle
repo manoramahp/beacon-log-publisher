@@ -1,5 +1,6 @@
 apply plugin: 'com.android.application'
 
+
 android {
     compileSdkVersion 23
     buildToolsVersion "23.0.1"
@@ -34,4 +35,5 @@ dependencies {
     compile 'org.altbeacon:android-beacon-library:2+'
     compile files('libs/httpclient-4.5.1.jar')
     compile files('libs/httpcore-4.4.4.jar')
+    compile 'com.google.android.gms:play-services:8.1.0'
 }
