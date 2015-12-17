@@ -126,29 +126,29 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     @Override
     public void onBeaconServiceConnect() {
 //        beaconManager.setBackgroundMode(true);
-        beaconManager.setMonitorNotifier(new MonitorNotifier() {
-            @Override
-            public void didEnterRegion(org.altbeacon.beacon.Region region) {
-                Log.i(TAG, "Entered beacon region");
-            }
-
-            @Override
-            public void didExitRegion(org.altbeacon.beacon.Region region) {
-                Log.i(TAG, "Exited beacon region");
-            }
-
-            @Override
-            public void didDetermineStateForRegion(int i, org.altbeacon.beacon.Region region) {
-                Log.i(TAG, "Switched from seeing/not seeing beacons: "+i);
-            }
-        });
-
-        try {
-            beaconManager.startMonitoringBeaconsInRegion(new Region("myMonitoringUniqueId", null, null, null));
-//            beaconManager.startMonitoringBeaconsInRegion(new Region("myMonitoringUniqueId", Identifier.parse("0"), Identifier.parse("1"), Identifier.parse("2")));
-        } catch (RemoteException e) {
-            Log.e("Error monitoring", e.getMessage());
-        }
+//        beaconManager.setMonitorNotifier(new MonitorNotifier() {
+//            @Override
+//            public void didEnterRegion(org.altbeacon.beacon.Region region) {
+//                Log.i(TAG, "Entered beacon region");
+//            }
+//
+//            @Override
+//            public void didExitRegion(org.altbeacon.beacon.Region region) {
+//                Log.i(TAG, "Exited beacon region");
+//            }
+//
+//            @Override
+//            public void didDetermineStateForRegion(int i, org.altbeacon.beacon.Region region) {
+//                Log.i(TAG, "Switched from seeing/not seeing beacons: "+i);
+//            }
+//        });
+//
+//        try {
+//            beaconManager.startMonitoringBeaconsInRegion(new Region("myMonitoringUniqueId", null, null, null));
+////            beaconManager.startMonitoringBeaconsInRegion(new Region("myMonitoringUniqueId", Identifier.parse("0"), Identifier.parse("1"), Identifier.parse("2")));
+//        } catch (RemoteException e) {
+//            Log.e("Error monitoring", e.getMessage());
+//        }
 
         beaconManager.setRangeNotifier(new RangeNotifier() {
             @Override
@@ -170,7 +170,6 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
 
         try {
             beaconManager.startRangingBeaconsInRegion(new Region("myRangingUniqueId", null, null, null));
-//            beaconManager.startRangingBeaconsInRegion(new Region("myRangingUniqueId", Identifier.parse("MY_UUID"), Identifier.parse("1"), Identifier.parse("2")));
         } catch (RemoteException e) {
             Log.e("Error : beacon ranging", e.getMessage());
         }
