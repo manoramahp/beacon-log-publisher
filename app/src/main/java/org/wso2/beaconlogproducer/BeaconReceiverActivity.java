@@ -31,6 +31,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.Collection;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -103,8 +104,8 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     private void sendEmailAttachment() {
         try {
             GMailSender sender = new GMailSender("manoramahp@gmail.com", "xxxxxx");
-            sender.sendMail("This is Subject",
-                    "This is Body",
+            sender.sendMail("Beacon/Location Logs",
+                    "Beacon logs for ",
                     "manoramahp@gmail.com",
                     "manorama@wso2.com");
         } catch (Exception e) {
@@ -245,7 +246,7 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
             }
             logString = jsonObj.toString();
 
-            File logFile = new File(Environment.getExternalStorageDirectory(), "beaconlog");
+            File logFile = new File(Environment.getExternalStorageDirectory(), "beaconlog-" + new Date().getMinutes());
             if (!logFile.exists()) {
                 logFile.createNewFile();
             }

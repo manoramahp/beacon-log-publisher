@@ -2,7 +2,11 @@ package org.wso2.beaconlogproducer;
 
 import android.os.Environment;
 
+import org.apache.commons.io.filefilter.WildcardFileFilter;
+
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -28,7 +32,7 @@ public class GMailSender extends javax.mail.Authenticator {
     private String user;
     private String password;
     private Session session;
-    private Multipart _multipart;
+    private Multipart multipart;
 
     static {
         Security.addProvider(new JSSEProvider());
@@ -65,9 +69,19 @@ public class GMailSender extends javax.mail.Authenticator {
             message.setSubject(subject);
 
             // attachment
-            _multipart = new MimeMultipart();
-            addAttachment(Environment.getExternalStorageDirectory().getAbsolutePath() + "/beaconlog");
-            message.setContent(_multipart);
+            multipart = new MimeMultipart();
+//            addAttachment(Environment.getExternalStorageDirectory().getAbsolutePath() + "/beaconlog-48");
+//            addAttachment(Environment.getExternalStorageDirectory().getAbsolutePath() + "/beaconlog-46");
+
+            File dir = new File(Environment.getExternalStorageDirectory().getAbsolutePath());
+            FileFilter fileFilter = new WildcardFileFilter("beaconlog*");
+            File[] files = dir.listFiles(fileFilter);
+            for (File file : files) {
+                addAttachment(file.getAbsolutePath());
+                body += "\n" + file.getAbsolutePath();
+            }
+
+            message.setContent(multipart);
 
 //            message.setDataHandler(handler);
             if (recipients.indexOf(',') > 0)
@@ -78,10 +92,10 @@ public class GMailSender extends javax.mail.Authenticator {
             // setup message body
             BodyPart messageBodyPart = new MimeBodyPart();
             messageBodyPart.setText(body);
-            _multipart.addBodyPart(messageBodyPart);
+            multipart.addBodyPart(messageBodyPart);
 
             // Put parts in message
-            message.setContent(_multipart);
+            message.setContent(multipart);
 
             Transport.send(message);
         }catch(Exception e){
@@ -89,25 +103,13 @@ public class GMailSender extends javax.mail.Authenticator {
         }
     }
 
-//    public void addAttachment(String filename,String subject) throws Exception {
-//        BodyPart messageBodyPart = new MimeBodyPart();
-//        DataSource source = new FileDataSource(filename);
-//        messageBodyPart.setDataHandler(new DataHandler(source));
-//        messageBodyPart.setFileName(filename);
-//        _multipart.addBodyPart(messageBodyPart);
-//
-//        BodyPart messageBodyPart2 = new MimeBodyPart();
-//        messageBodyPart2.setText(subject);
-//
-//        _multipart.addBodyPart(messageBodyPart2);
-//    }
 
     public void addAttachment(String filename) throws Exception {
         BodyPart messageBodyPart = new MimeBodyPart();
         DataSource source = new FileDataSource(filename);
         messageBodyPart.setDataHandler(new DataHandler(source));
         messageBodyPart.setFileName(filename);
-        _multipart.addBodyPart(messageBodyPart);
+        multipart.addBodyPart(messageBodyPart);
     }
 
 
