@@ -99,7 +99,7 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
                         Log.e("Error : send email", e.getMessage());
                     }
                 }
-            }, 0, 1, TimeUnit.MINUTES);
+            }, 0, 1, TimeUnit.HOURS);
 
         } catch (Throwable e) {
             Log.e("ERROR On create", e.getMessage());
