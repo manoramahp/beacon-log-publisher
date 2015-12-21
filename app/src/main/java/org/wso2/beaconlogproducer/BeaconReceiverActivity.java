@@ -7,10 +7,8 @@ import android.content.Intent;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Looper;
 import android.os.RemoteException;
 import android.util.Log;
 import android.widget.Toast;
@@ -25,7 +23,6 @@ import org.altbeacon.beacon.Beacon;
 import org.altbeacon.beacon.BeaconConsumer;
 import org.altbeacon.beacon.BeaconManager;
 import org.altbeacon.beacon.BeaconParser;
-import org.altbeacon.beacon.MonitorNotifier;
 import org.altbeacon.beacon.RangeNotifier;
 import org.altbeacon.beacon.Region;
 import org.json.JSONObject;
@@ -48,8 +45,6 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     private LocationManager locationManager;
     private double latitude, longitude;
 
-    // Location
-    // private static final String TAG2=BeaconReceiverActivity.class.getSimpleName();
     private final static int PLAY_SERVICES_RESOLUTION_REQUEST = 1000;
     private Location mLastLocation;
     private GoogleApiClient mGoogleApiClient;
@@ -76,27 +71,10 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
             mRequestingLocationUpdates = true;
 
             beaconManager = BeaconManager.getInstanceForApplication(this);
-//        beaconManager.setForegroundScanPeriod(5000l);
-            // To detect proprietary beacons, you must add a line like below corresponding to your beacon
-            // type.  Do a web search for "setBeaconLayout" to get the proper expression.
-//         beaconManager.getBeaconParsers().add(new BeaconParser().
-//                setBeaconLayout("m:2-3=beac,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
-
-//        beaconManager.getBeaconParsers().add(new BeaconParser().
-//                setBeaconLayout("m:2-3=0203,i:14-19l,d:10-13,p:9-9"));
-
-//        beaconManager.getBeaconParsers().add(new BeaconParser().
-//                setBeaconLayout("m:0-3=4c000215,i:4-19,i:20-21,i:22-23,p:24-24"));
-
-//        beaconManager.getBeaconParsers().add(new BeaconParser().
-//                setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24"));
-
-//        beaconManager.getBeaconParsers().add(new BeaconParser(). setBeaconLayout("m:0-3=4c000215,i:4-19,i:20-21,i:22-23,p:24-24"));
-
             beaconManager.getBeaconParsers().add(new BeaconParser().
                     setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
-
             beaconManager.bind(this);
+
             ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
             scheduler.scheduleWithFixedDelay(new Runnable() {
                 @Override
@@ -109,9 +87,91 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
                     }
                 }
             }, 0, 5, TimeUnit.SECONDS);
+
+             new Thread() {
+             @Override
+                public void run() {
+                 sendFileToServer();
+                 sendEmailAttachment();
+                }
+              }.start();
         } catch (Throwable e) {
             Log.e("ERROR On create", e.getMessage());
         }
+    }
+
+    private void sendEmailAttachment() {
+        try {
+            GMailSender sender = new GMailSender("manoramahp@gmail.com", "xxxxxx");
+            sender.sendMail("This is Subject",
+                    "This is Body",
+                    "manoramahp@gmail.com",
+                    "manorama@wso2.com");
+        } catch (Exception e) {
+            Log.e("SendMail", e.getMessage(), e);
+        }
+    }
+
+    private void sendFileToServer() {
+        String url = "http://10.10.10.155:8000";//"http://10.10.10.155:8080/upload";
+//        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(),
+//                "beaconlog");
+//        try {
+//            HttpClient httpclient = new DefaultHttpClient();
+//
+//            HttpPost httppost = new HttpPost(url);
+//
+//            InputStreamEntity reqEntity = new InputStreamEntity(
+//                    new FileInputStream(file), -1);
+//            reqEntity.setContentType("binary/octet-stream");
+//            reqEntity.setChunked(true); // Send in multiple parts if needed
+////            httppost.setHeader("Access-Control-Allow-Origin", "*");
+////            httppost.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+////            httppost.setHeader("Access-Control-Allow-Headers", "X-Requested-With");
+//            httppost.setEntity(reqEntity);
+//            HttpResponse response = httpclient.execute(httppost);
+//            Log.d("RESPONSE", response.toString());
+//            //Do something with response...
+//
+//        } catch (Exception e) {
+//            // show error
+//            e.printStackTrace();
+//        }
+
+//        InputStream inputStream;
+//        try {
+//            File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(),
+//                "beaconlog");
+//            inputStream = new FileInputStream(file);
+//            byte[] data;
+//            try {
+//                data = IOUtils.toByteArray(inputStream);
+//
+//                HttpClient httpClient = new DefaultHttpClient();
+//                HttpPost httpPost = new HttpPost(url);
+//
+//                InputStreamBody inputStreamBody = new InputStreamBody(new ByteArrayInputStream(data), "beaconlog");
+//                MultipartEntity multipartEntity = new MultipartEntity();
+//                multipartEntity.addPart("file", inputStreamBody);
+//                httpPost.setEntity(multipartEntity);
+//
+//                HttpResponse httpResponse = httpClient.execute(httpPost);
+//
+//                // Handle response back from script.
+//                if(httpResponse != null) {
+//
+//                } else { // Error, no response.
+//
+//                }
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//        } catch (FileNotFoundException e) {
+//            e.printStackTrace();
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+
     }
 
     @Override
@@ -122,30 +182,6 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
 
     @Override
     public void onBeaconServiceConnect() {
-//        beaconManager.setBackgroundMode(true);
-//        beaconManager.setMonitorNotifier(new MonitorNotifier() {
-//            @Override
-//            public void didEnterRegion(org.altbeacon.beacon.Region region) {
-//                Log.i(TAG, "Entered beacon region");
-//            }
-//
-//            @Override
-//            public void didExitRegion(org.altbeacon.beacon.Region region) {
-//                Log.i(TAG, "Exited beacon region");
-//            }
-//
-//            @Override
-//            public void didDetermineStateForRegion(int i, org.altbeacon.beacon.Region region) {
-//                Log.i(TAG, "Switched from seeing/not seeing beacons: "+i);
-//            }
-//        });
-//
-//        try {
-//            beaconManager.startMonitoringBeaconsInRegion(new Region("myMonitoringUniqueId", null, null, null));
-////            beaconManager.startMonitoringBeaconsInRegion(new Region("myMonitoringUniqueId", Identifier.parse("0"), Identifier.parse("1"), Identifier.parse("2")));
-//        } catch (RemoteException e) {
-//            Log.e("Error monitoring", e.getMessage());
-//        }
         try {
             beaconManager.setBackgroundScanPeriod(1000l);
             beaconManager.setBackgroundBetweenScanPeriod(1000l);
@@ -167,7 +203,8 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
                             beaconDataRecord.setUuid(String.valueOf(beacon.getId1()));
                             beaconDataRecord.setMajor(String.valueOf(beacon.getId2()));
                             beaconDataRecord.setMinor(String.valueOf(beacon.getId3()));
-                            queue.add(beaconDataRecord);
+                            beaconDataRecord.setDistance(String.valueOf(beacon.getDistance()));
+                            beaconDataRecord.setRssi(String.valueOf(beacon.getRssi()));
                         }
                     }
                 } catch (Throwable e) {
@@ -186,7 +223,6 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     private void publishBeaconData() {
         try {
             String logString = "";
-//            while (true) {
             createLocationRequest();
             showLocation();
             JSONObject jsonObj = new JSONObject();
@@ -195,9 +231,6 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
                 Double latitude = mLastLocation.getLatitude();
                 Double longitude = mLastLocation.getLongitude();
 
-//                jsonObj.put("beaconUuid", "d3fbdbe3-e95b-41a4-8b73-8a02feb257ba");
-//                jsonObj.put("beaconMajor", "1");
-//                jsonObj.put("beaconMinor", "2");
                 jsonObj.put("timestamp", System.currentTimeMillis());
                 jsonObj.put("latitude", latitude);
                 jsonObj.put("longitude", longitude);
@@ -207,6 +240,8 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
                 jsonObj.put("beaconUuid", record.getUuid());
                 jsonObj.put("beaconMajor", record.getMajor());
                 jsonObj.put("beaconMinor", record.getMinor());
+                jsonObj.put("distance", record.getDistance());
+                jsonObj.put("rssi", record.getRssi());
             }
             logString = jsonObj.toString();
 
@@ -222,9 +257,6 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
             buf.close();
 //            sendBroadcast(new Intent(Intent.ACTION_MEDIA_MOUNTED,
 //                    Uri.parse("file://" + Environment.getExternalStorageDirectory())));
-//                Thread.sleep(1000);
-//            }
-
         } catch (Exception e) {
             Log.e("Error : writing logs", e.getMessage());
         }
