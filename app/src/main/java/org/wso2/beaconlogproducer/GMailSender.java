@@ -1,6 +1,7 @@
 package org.wso2.beaconlogproducer;
 
 import android.os.Environment;
+import android.util.Log;
 
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 
@@ -11,6 +12,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.Security;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.Properties;
 
 import javax.activation.DataHandler;
@@ -52,9 +56,7 @@ public class GMailSender extends javax.mail.Authenticator {
                 "javax.net.ssl.SSLSocketFactory");
         props.put("mail.smtp.socketFactory.fallback", "false");
         props.setProperty("mail.smtp.quitwait", "false");
-
         session = Session.getDefaultInstance(props, this);
-
     }
 
     protected PasswordAuthentication getPasswordAuthentication() {
@@ -63,27 +65,28 @@ public class GMailSender extends javax.mail.Authenticator {
 
     public synchronized void sendMail(String subject, String body, String sender, String recipients) throws Exception {
         try{
+            String currentlyUsedLogfile = null;
             MimeMessage message = new MimeMessage(session);
             DataHandler handler = new DataHandler(new ByteArrayDataSource(body.getBytes(), "text/plain"));
             message.setSender(new InternetAddress(sender));
             message.setSubject(subject);
 
-            // attachment
+            // attachments
             multipart = new MimeMultipart();
-//            addAttachment(Environment.getExternalStorageDirectory().getAbsolutePath() + "/beaconlog-48");
-//            addAttachment(Environment.getExternalStorageDirectory().getAbsolutePath() + "/beaconlog-46");
-
             File dir = new File(Environment.getExternalStorageDirectory().getAbsolutePath());
             FileFilter fileFilter = new WildcardFileFilter("beaconlog*");
             File[] files = dir.listFiles(fileFilter);
             for (File file : files) {
-                addAttachment(file.getAbsolutePath());
-                body += "\n" + file.getAbsolutePath();
+                SimpleDateFormat format = new SimpleDateFormat("dd-MM-yyyy-HH");
+                String fileName = "beaconlog-" + format.format(new Date()) + ".log";
+                if(!fileName.equals(file.getName())) {
+                    addAttachment(file.getAbsolutePath());
+                    body += "\n" + file.getAbsolutePath();
+                } else {
+                    currentlyUsedLogfile = file.getName();
+                }
             }
 
-            message.setContent(multipart);
-
-//            message.setDataHandler(handler);
             if (recipients.indexOf(',') > 0)
                 message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipients));
             else
@@ -96,13 +99,24 @@ public class GMailSender extends javax.mail.Authenticator {
 
             // Put parts in message
             message.setContent(multipart);
-
             Transport.send(message);
-        }catch(Exception e){
-
+            deleteSentFiles(currentlyUsedLogfile);
+        } catch (Exception e) {
+            Log.e("Error composing mail", e.getMessage());
         }
     }
 
+    private void deleteSentFiles(String currentlyUsedLogfile) {
+        File dir = new File(Environment.getExternalStorageDirectory().getAbsolutePath());
+        FileFilter fileFilter = new WildcardFileFilter("beaconlog*");
+        File[] files = dir.listFiles(fileFilter);
+        for (File file : files) {
+            if(!currentlyUsedLogfile.equals(file.getName())) {
+                boolean isDeleted = file.delete();
+                Log.e("Deleted : " + file.getName(), " : " + isDeleted);
+            }
+        }
+    }
 
     public void addAttachment(String filename) throws Exception {
         BodyPart messageBodyPart = new MimeBodyPart();

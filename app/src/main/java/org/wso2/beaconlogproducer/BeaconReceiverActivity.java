@@ -30,6 +30,7 @@ import org.json.JSONObject;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
@@ -81,21 +82,25 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
                 @Override
                 public void run() {
                     try {
-//                        Looper.prepare();
                         publishBeaconData();
                     } catch (Throwable e) {
-                        Log.e("ERROR", e.getMessage());
+                        Log.e("Error : log beacon data", e.getMessage());
                     }
                 }
             }, 0, 5, TimeUnit.SECONDS);
 
-             new Thread() {
-             @Override
+            ScheduledExecutorService emailScheduler = Executors.newSingleThreadScheduledExecutor();
+            emailScheduler.scheduleWithFixedDelay(new Runnable() {
+                @Override
                 public void run() {
-                 sendFileToServer();
-                 sendEmailAttachment();
+                    try {
+                        sendEmailAttachment();
+                    } catch (Throwable e) {
+                        Log.e("Error : send email", e.getMessage());
+                    }
                 }
-              }.start();
+            }, 0, 1, TimeUnit.MINUTES);
+
         } catch (Throwable e) {
             Log.e("ERROR On create", e.getMessage());
         }
@@ -104,75 +109,10 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     private void sendEmailAttachment() {
         try {
             GMailSender sender = new GMailSender("manoramahp@gmail.com", "xxxxxx");
-            sender.sendMail("Beacon/Location Logs",
-                    "Beacon logs for ",
-                    "manoramahp@gmail.com",
-                    "manorama@wso2.com");
+            sender.sendMail("Beacon/location Logs", "Please find the attached beacon and location log files. \n", "manoramahp@gmail.com", "manorama@wso2.com");
         } catch (Exception e) {
-            Log.e("SendMail", e.getMessage(), e);
+            Log.e("Error sending mail", e.getMessage());
         }
-    }
-
-    private void sendFileToServer() {
-        String url = "http://10.10.10.155:8000";//"http://10.10.10.155:8080/upload";
-//        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(),
-//                "beaconlog");
-//        try {
-//            HttpClient httpclient = new DefaultHttpClient();
-//
-//            HttpPost httppost = new HttpPost(url);
-//
-//            InputStreamEntity reqEntity = new InputStreamEntity(
-//                    new FileInputStream(file), -1);
-//            reqEntity.setContentType("binary/octet-stream");
-//            reqEntity.setChunked(true); // Send in multiple parts if needed
-////            httppost.setHeader("Access-Control-Allow-Origin", "*");
-////            httppost.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-////            httppost.setHeader("Access-Control-Allow-Headers", "X-Requested-With");
-//            httppost.setEntity(reqEntity);
-//            HttpResponse response = httpclient.execute(httppost);
-//            Log.d("RESPONSE", response.toString());
-//            //Do something with response...
-//
-//        } catch (Exception e) {
-//            // show error
-//            e.printStackTrace();
-//        }
-
-//        InputStream inputStream;
-//        try {
-//            File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(),
-//                "beaconlog");
-//            inputStream = new FileInputStream(file);
-//            byte[] data;
-//            try {
-//                data = IOUtils.toByteArray(inputStream);
-//
-//                HttpClient httpClient = new DefaultHttpClient();
-//                HttpPost httpPost = new HttpPost(url);
-//
-//                InputStreamBody inputStreamBody = new InputStreamBody(new ByteArrayInputStream(data), "beaconlog");
-//                MultipartEntity multipartEntity = new MultipartEntity();
-//                multipartEntity.addPart("file", inputStreamBody);
-//                httpPost.setEntity(multipartEntity);
-//
-//                HttpResponse httpResponse = httpClient.execute(httpPost);
-//
-//                // Handle response back from script.
-//                if(httpResponse != null) {
-//
-//                } else { // Error, no response.
-//
-//                }
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
-//        } catch (FileNotFoundException e) {
-//            e.printStackTrace();
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-
     }
 
     @Override
@@ -246,7 +186,9 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
             }
             logString = jsonObj.toString();
 
-            File logFile = new File(Environment.getExternalStorageDirectory(), "beaconlog-" + new Date().getMinutes());
+            SimpleDateFormat format = new SimpleDateFormat("dd-MM-yyyy-HH");
+            String fileName = "beaconlog-" + format.format(new Date()) + ".log";
+            File logFile = new File(Environment.getExternalStorageDirectory(), fileName);
             if (!logFile.exists()) {
                 logFile.createNewFile();
             }
