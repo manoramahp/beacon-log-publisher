@@ -11,6 +11,8 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.RemoteException;
 import android.util.Log;
+import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -45,7 +47,6 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     private BeaconManager beaconManager;
     private Queue<BeaconDataRecord> queue;
     private LocationManager locationManager;
-    private double latitude, longitude;
 
     private final static int PLAY_SERVICES_RESOLUTION_REQUEST = 1000;
     private Location mLastLocation;
@@ -57,6 +58,14 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     private static int FASTEST_INTERVAL = 5000;
     private static int DISPLACEMENT = 10;
 
+    TextView senderEmailText;
+    TextView senderPasswordText;
+    TextView recipientEmailText;
+
+    String senderEmail;
+    String senderPassword;
+    String recepientEmail;
+
     Context context = this;
 
     @Override
@@ -64,6 +73,12 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
         try {
             super.onCreate(savedInstanceState);
             setContentView(R.layout.activity_beacon_receiver);
+
+            senderEmail = "beaconlog.publisher@gmail.com";
+            senderPassword = "xxxxxx";
+            recepientEmail = "beaconlog.publisher@gmail.com";
+            initUIFields();
+
             queue = new ConcurrentLinkedQueue<BeaconDataRecord>();
 
             locationManager = (LocationManager) context.getSystemService(LOCATION_SERVICE);
@@ -106,13 +121,35 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
         }
     }
 
+    /**
+     * Initialize the UI fields
+     */
+    private void initUIFields() {
+        senderEmailText = (TextView)findViewById(R.id.enter_sender_email_txt);
+        senderPasswordText = (TextView)findViewById(R.id.enter_sender_password_txt);
+        recipientEmailText = (TextView)findViewById(R.id.enter_recipient_email_txt);
+        senderEmailText.setText(senderEmail);
+        senderPasswordText.setText(senderPassword);
+        recipientEmailText.setText(recepientEmail);
+    }
+
+    /**
+     * Get the email addresses for the sender and receiver from the user entered values
+     * @param view
+     */
+    public void saveEmailAddress(View view) {
+        senderEmail = senderEmailText.getText().toString();
+        senderPassword = senderPasswordText.getText().toString();
+        recepientEmail = recipientEmailText.getText().toString();
+    }
+
+    /**
+     * Send the mail containing the attachments
+     */
     private void sendEmailAttachment() {
         try {
-            String senderEmail = "beaconlog.publisher@gmail.com";
-            String senderPassword = "xxxxxx";
-            String receiverEmail = "beaconlog.publisher@gmail.com";
             GMailSender sender = new GMailSender(senderEmail, senderPassword);
-            sender.sendMail("Beacon/location Logs", "Please find the attached beacon and location log files. \n", senderEmail, receiverEmail);
+            sender.sendMail("Beacon/location Logs", "Please find the attached beacon and location log files. \n", senderEmail, recepientEmail);
         } catch (Exception e) {
             Log.e("Error sending mail", e.getMessage());
         }
@@ -164,6 +201,9 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
         }
     }
 
+    /**
+     * Publish the received beacon data to the local file
+     */
     private void publishBeaconData() {
         try {
             String logString = "";
@@ -212,7 +252,6 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     private void showLocation() {
         mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
         if (mLastLocation != null) {
-
             Double latitude = mLastLocation.getLatitude();
             Double longitude = mLastLocation.getLongitude();
             Log.d("location ", "Longitude : " + longitude + " , Latitude :" + latitude);
@@ -277,10 +316,13 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     private void togglePeriodicLocationUpdates() {
         if (!mRequestingLocationUpdates) {
             startLocationUpdates();
-            Log.d(TAG, "Periodic locaion updates started!");
+            Log.d(TAG, "Periodic location updates started!");
         }
     }
 
+    /**
+     * Create location request
+     */
     protected void createLocationRequest() {
         mLocationRequest = new LocationRequest();
         mLocationRequest.setInterval(UPDATE_INTERVAL);
@@ -289,6 +331,9 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
         mLocationRequest.setSmallestDisplacement(DISPLACEMENT);
     }
 
+    /**
+     * Location api configurations
+     */
     protected void startLocationUpdates() {
         Intent alarm = new Intent(BeaconReceiverActivity.this, BeaconReceiverActivity.class);
         PendingIntent recurringAlarm =

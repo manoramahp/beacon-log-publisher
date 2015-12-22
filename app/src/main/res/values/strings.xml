@@ -1,4 +1,8 @@
 <resources>
-    <string name="app_name">BeaconLogProducer</string>
+    <string name="app_name">Beacon Log Producer</string>
     <string name="action_settings">Settings</string>
+    <string name="enter_sender_email">Enter sender e-mail address here</string>
+    <string name="enter_sender_password">Enter sender password here</string>
+    <string name="enter_recipient_email">Enter recipient e-mail address here</string>
+    <string name="button_save">Save</string>
 </resources>
