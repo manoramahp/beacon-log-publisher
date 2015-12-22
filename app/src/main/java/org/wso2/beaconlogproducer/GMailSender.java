@@ -73,6 +73,7 @@ public class GMailSender extends javax.mail.Authenticator {
      */
     public void sendMail(String subject, String body, String sender, String recipients) throws Exception {
         try{
+            boolean attachmentsAvailable = false;
             String currentlyUsedLogfile = null;
             MimeMessage message = new MimeMessage(session);
             DataHandler handler = new DataHandler(new ByteArrayDataSource(body.getBytes(), "text/plain"));
@@ -90,25 +91,28 @@ public class GMailSender extends javax.mail.Authenticator {
                 if(!fileName.equals(file.getName())) {
                     addAttachment(file.getAbsolutePath());
                     body += "\n" + file.getAbsolutePath();
+                    attachmentsAvailable = true;
                 } else {
                     currentlyUsedLogfile = file.getName();
                 }
             }
 
-            if (recipients.indexOf(',') > 0)
-                message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipients));
-            else
-                message.setRecipient(Message.RecipientType.TO, new InternetAddress(recipients));
+            if(attachmentsAvailable) {
+                if (recipients.indexOf(',') > 0)
+                    message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipients));
+                else
+                    message.setRecipient(Message.RecipientType.TO, new InternetAddress(recipients));
 
-            // Setup message body
-            BodyPart messageBodyPart = new MimeBodyPart();
-            messageBodyPart.setText(body);
-            multipart.addBodyPart(messageBodyPart);
+                // Setup message body
+                BodyPart messageBodyPart = new MimeBodyPart();
+                messageBodyPart.setText(body);
+                multipart.addBodyPart(messageBodyPart);
 
-            // Put parts in message
-            message.setContent(multipart);
-            Transport.send(message);
-            deleteSentFiles(currentlyUsedLogfile);
+                // Put parts in message
+                message.setContent(multipart);
+                Transport.send(message);
+                deleteSentFiles(currentlyUsedLogfile);
+            }
         } catch (Exception e) {
             Log.e("Error composing mail", e.getMessage());
         }
