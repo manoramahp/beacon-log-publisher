@@ -63,7 +63,15 @@ public class GMailSender extends javax.mail.Authenticator {
         return new PasswordAuthentication(user, password);
     }
 
-    public synchronized void sendMail(String subject, String body, String sender, String recipients) throws Exception {
+    /**
+     * Send email with attachments
+     * @param subject
+     * @param body
+     * @param sender
+     * @param recipients
+     * @throws Exception
+     */
+    public void sendMail(String subject, String body, String sender, String recipients) throws Exception {
         try{
             String currentlyUsedLogfile = null;
             MimeMessage message = new MimeMessage(session);
@@ -92,7 +100,7 @@ public class GMailSender extends javax.mail.Authenticator {
             else
                 message.setRecipient(Message.RecipientType.TO, new InternetAddress(recipients));
 
-            // setup message body
+            // Setup message body
             BodyPart messageBodyPart = new MimeBodyPart();
             messageBodyPart.setText(body);
             multipart.addBodyPart(messageBodyPart);
@@ -106,6 +114,10 @@ public class GMailSender extends javax.mail.Authenticator {
         }
     }
 
+    /**
+     * Delete the files
+     * @param currentlyUsedLogfile name of the log files to which the logs are currently written
+     */
     private void deleteSentFiles(String currentlyUsedLogfile) {
         File dir = new File(Environment.getExternalStorageDirectory().getAbsolutePath());
         FileFilter fileFilter = new WildcardFileFilter("beaconlog*");
@@ -118,6 +130,11 @@ public class GMailSender extends javax.mail.Authenticator {
         }
     }
 
+    /**
+     * Prepare email attachments
+     * @param filename file to be added as attachment
+     * @throws Exception
+     */
     public void addAttachment(String filename) throws Exception {
         BodyPart messageBodyPart = new MimeBodyPart();
         DataSource source = new FileDataSource(filename);
@@ -125,7 +142,6 @@ public class GMailSender extends javax.mail.Authenticator {
         messageBodyPart.setFileName(filename);
         multipart.addBodyPart(messageBodyPart);
     }
-
 
     public class ByteArrayDataSource implements DataSource {
         private byte[] data;

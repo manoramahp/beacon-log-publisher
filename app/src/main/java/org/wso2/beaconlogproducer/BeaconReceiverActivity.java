@@ -62,9 +62,9 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     TextView senderPasswordText;
     TextView recipientEmailText;
 
-    String senderEmail;
-    String senderPassword;
-    String recepientEmail;
+    String senderEmail = "beaconlog.publisher@gmail.com";;
+    String senderPassword = "xxxxxx";;
+    String recepientEmail= "beaconlog.publisher@gmail.com";;
 
     Context context = this;
 
@@ -74,24 +74,24 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
             super.onCreate(savedInstanceState);
             setContentView(R.layout.activity_beacon_receiver);
 
-            senderEmail = "beaconlog.publisher@gmail.com";
-            senderPassword = "xxxxxx";
-            recepientEmail = "beaconlog.publisher@gmail.com";
             initUIFields();
 
             queue = new ConcurrentLinkedQueue<BeaconDataRecord>();
 
+            // location
             locationManager = (LocationManager) context.getSystemService(LOCATION_SERVICE);
             checkPlayServices();
             buildGoogleApiClient();
             createLocationRequest();
             mRequestingLocationUpdates = true;
 
+            // beacon data
             beaconManager = BeaconManager.getInstanceForApplication(this);
             beaconManager.getBeaconParsers().add(new BeaconParser().
                     setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
             beaconManager.bind(this);
 
+            // write to file - every 5 seconds
             ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
             scheduler.scheduleWithFixedDelay(new Runnable() {
                 @Override
@@ -104,6 +104,7 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
                 }
             }, 0, 5, TimeUnit.SECONDS);
 
+            // send email attachment - every hour
             ScheduledExecutorService emailScheduler = Executors.newSingleThreadScheduledExecutor();
             emailScheduler.scheduleWithFixedDelay(new Runnable() {
                 @Override
@@ -119,6 +120,12 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
         } catch (Throwable e) {
             Log.e("ERROR On create", e.getMessage());
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        beaconManager.unbind(this);
     }
 
     /**
@@ -149,16 +156,12 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     private void sendEmailAttachment() {
         try {
             GMailSender sender = new GMailSender(senderEmail, senderPassword);
-            sender.sendMail("Beacon/location Logs", "Please find the attached beacon and location log files. \n", senderEmail, recepientEmail);
+            String subject = "Beacon/location Logs";
+            String body = "Please find the attached beacon and location log files. \n";
+            sender.sendMail(subject, body, senderEmail, recepientEmail);
         } catch (Exception e) {
             Log.e("Error sending mail", e.getMessage());
         }
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        beaconManager.unbind(this);
     }
 
     @Override
@@ -186,6 +189,7 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
                             beaconDataRecord.setMinor(String.valueOf(beacon.getId3()));
                             beaconDataRecord.setDistance(String.valueOf(beacon.getDistance()));
                             beaconDataRecord.setRssi(String.valueOf(beacon.getRssi()));
+                            queue.add(beaconDataRecord);
                         }
                     }
                 } catch (Throwable e) {
@@ -228,6 +232,15 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
                 jsonObj.put("rssi", record.getRssi());
             }
             logString = jsonObj.toString();
+            while (!queue.isEmpty()) {
+                BeaconDataRecord dataRecord = queue.poll();
+                jsonObj.put("beaconUuid", dataRecord.getUuid());
+                jsonObj.put("beaconMajor", dataRecord.getMajor());
+                jsonObj.put("beaconMinor", dataRecord.getMinor());
+                jsonObj.put("distance", dataRecord.getDistance());
+                jsonObj.put("rssi", dataRecord.getRssi());
+                logString += "\n" + jsonObj.toString();
+            }
 
             SimpleDateFormat format = new SimpleDateFormat("dd-MM-yyyy-HH");
             String fileName = "beaconlog-" + format.format(new Date()) + ".log";
