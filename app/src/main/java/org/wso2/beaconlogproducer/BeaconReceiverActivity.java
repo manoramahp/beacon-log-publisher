@@ -108,8 +108,11 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
 
     private void sendEmailAttachment() {
         try {
-            GMailSender sender = new GMailSender("manoramahp@gmail.com", "xxxxxx");
-            sender.sendMail("Beacon/location Logs", "Please find the attached beacon and location log files. \n", "manoramahp@gmail.com", "manorama@wso2.com");
+            String senderEmail = "beaconlog.publisher@gmail.com";
+            String senderPassword = "xxxxxx";
+            String receiverEmail = "beaconlog.publisher@gmail.com";
+            GMailSender sender = new GMailSender(senderEmail, senderPassword);
+            sender.sendMail("Beacon/location Logs", "Please find the attached beacon and location log files. \n", senderEmail, receiverEmail);
         } catch (Exception e) {
             Log.e("Error sending mail", e.getMessage());
         }
