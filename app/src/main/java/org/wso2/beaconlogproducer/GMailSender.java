@@ -13,7 +13,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.Security;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.Properties;
 
@@ -36,7 +35,6 @@ public class GMailSender extends javax.mail.Authenticator {
     private String user;
     private String password;
     private Session session;
-    private Multipart multipart;
 
     static {
         Security.addProvider(new JSSEProvider());
@@ -76,12 +74,11 @@ public class GMailSender extends javax.mail.Authenticator {
             boolean attachmentsAvailable = false;
             String currentlyUsedLogfile = null;
             MimeMessage message = new MimeMessage(session);
-            DataHandler handler = new DataHandler(new ByteArrayDataSource(body.getBytes(), "text/plain"));
             message.setSender(new InternetAddress(sender));
             message.setSubject(subject);
 
             // attachments
-            multipart = new MimeMultipart();
+            Multipart multipart = new MimeMultipart();
             File dir = new File(Environment.getExternalStorageDirectory().getAbsolutePath());
             FileFilter fileFilter = new WildcardFileFilter("beaconlog*");
             File[] files = dir.listFiles(fileFilter);
@@ -89,7 +86,7 @@ public class GMailSender extends javax.mail.Authenticator {
                 SimpleDateFormat format = new SimpleDateFormat("dd-MM-yyyy-HH");
                 String fileName = "beaconlog-" + format.format(new Date()) + ".log";
                 if(!fileName.equals(file.getName())) {
-                    addAttachment(file.getAbsolutePath());
+                    addAttachment(multipart, file.getAbsolutePath());
                     body += "\n" + file.getAbsolutePath();
                     attachmentsAvailable = true;
                 } else {
@@ -98,11 +95,11 @@ public class GMailSender extends javax.mail.Authenticator {
             }
 
             if(attachmentsAvailable) {
-                if (recipients.indexOf(',') > 0)
+                if (recipients.indexOf(',') > 0) {
                     message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipients));
-                else
+                } else {
                     message.setRecipient(Message.RecipientType.TO, new InternetAddress(recipients));
-
+                }
                 // Setup message body
                 BodyPart messageBodyPart = new MimeBodyPart();
                 messageBodyPart.setText(body);
@@ -139,7 +136,7 @@ public class GMailSender extends javax.mail.Authenticator {
      * @param filename file to be added as attachment
      * @throws Exception
      */
-    public void addAttachment(String filename) throws Exception {
+    public void addAttachment(Multipart multipart, String filename) throws Exception {
         BodyPart messageBodyPart = new MimeBodyPart();
         DataSource source = new FileDataSource(filename);
         messageBodyPart.setDataHandler(new DataHandler(source));

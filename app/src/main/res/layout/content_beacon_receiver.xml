@@ -41,4 +41,17 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:src="@drawable/beacon_logo" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/button_start"
+        android:onClick="startCollectingData" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/button_stop"
+        android:onClick="stopCollectingData" />
+
 </LinearLayout>

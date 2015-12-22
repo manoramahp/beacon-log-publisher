@@ -5,4 +5,6 @@
     <string name="enter_sender_password">Enter sender password here</string>
     <string name="enter_recipient_email">Enter recipient e-mail address here</string>
     <string name="button_save">Save</string>
+    <string name="button_start">Start</string>
+    <string name="button_stop">Stop</string>
 </resources>

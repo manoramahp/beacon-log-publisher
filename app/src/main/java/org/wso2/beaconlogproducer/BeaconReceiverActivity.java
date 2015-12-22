@@ -47,6 +47,7 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     private BeaconManager beaconManager;
     private Queue<BeaconDataRecord> queue;
     private LocationManager locationManager;
+    private ScheduledExecutorService fileWriteScheduler, emailScheduler;
 
     private final static int PLAY_SERVICES_RESOLUTION_REQUEST = 1000;
     private Location mLastLocation;
@@ -73,9 +74,7 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
         try {
             super.onCreate(savedInstanceState);
             setContentView(R.layout.activity_beacon_receiver);
-
             initUIFields();
-
             queue = new ConcurrentLinkedQueue<BeaconDataRecord>();
 
             // location
@@ -85,38 +84,6 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
             createLocationRequest();
             mRequestingLocationUpdates = true;
 
-            // beacon data
-            beaconManager = BeaconManager.getInstanceForApplication(this);
-            beaconManager.getBeaconParsers().add(new BeaconParser().
-                    setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
-            beaconManager.bind(this);
-
-            // write to file - every 5 seconds
-            ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-            scheduler.scheduleWithFixedDelay(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        publishBeaconData();
-                    } catch (Throwable e) {
-                        Log.e("Error : log beacon data", e.getMessage());
-                    }
-                }
-            }, 0, 5, TimeUnit.SECONDS);
-
-            // send email attachment - every hour
-            ScheduledExecutorService emailScheduler = Executors.newSingleThreadScheduledExecutor();
-            emailScheduler.scheduleWithFixedDelay(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        sendEmailAttachment();
-                    } catch (Throwable e) {
-                        Log.e("Error : send email", e.getMessage());
-                    }
-                }
-            }, 0, 1, TimeUnit.HOURS);
-
         } catch (Throwable e) {
             Log.e("ERROR On create", e.getMessage());
         }
@@ -125,7 +92,56 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+//        beaconManager.unbind(this);
+    }
+
+    /**
+     * Start collecting location and beacon data
+     * @param view
+     */
+    public void startCollectingData(View view) {
+
+        // beacon data
+        beaconManager = BeaconManager.getInstanceForApplication(this);
+        beaconManager.getBeaconParsers().add(new BeaconParser().
+                setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
+        beaconManager.bind(this);
+
+        // write to file - every 5 seconds
+        fileWriteScheduler = Executors.newSingleThreadScheduledExecutor();
+        fileWriteScheduler.scheduleWithFixedDelay(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    publishBeaconData();
+                } catch (Throwable e) {
+                    Log.e("Error : log beacon data", e.getMessage());
+                }
+            }
+        }, 0, 5, TimeUnit.SECONDS);
+
+        // send email attachment - every hour
+        emailScheduler = Executors.newSingleThreadScheduledExecutor();
+        emailScheduler.scheduleWithFixedDelay(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    sendEmailAttachment();
+                } catch (Throwable e) {
+                    Log.e("Error : send email", e.getMessage());
+                }
+            }
+        }, 0, 1, TimeUnit.HOURS);
+    }
+
+    /**
+     * Stop collecting location and beacon data
+     * @param view
+     */
+    public void stopCollectingData(View view) {
         beaconManager.unbind(this);
+        fileWriteScheduler.shutdown();
+        emailScheduler.shutdown();
     }
 
     /**
@@ -209,6 +225,7 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
      * Publish the received beacon data to the local file
      */
     private void publishBeaconData() {
+        BufferedWriter buf;
         try {
             String logString = "";
             createLocationRequest();
@@ -249,13 +266,11 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
                 logFile.createNewFile();
             }
             //BufferedWriter for performance, true to set append to file flag
-            BufferedWriter buf = new BufferedWriter(new FileWriter(logFile, true));
+            buf = new BufferedWriter(new FileWriter(logFile, true));
             buf.append(logString);
             buf.newLine();
             buf.flush();
             buf.close();
-//            sendBroadcast(new Intent(Intent.ACTION_MEDIA_MOUNTED,
-//                    Uri.parse("file://" + Environment.getExternalStorageDirectory())));
         } catch (Exception e) {
             Log.e("Error : writing logs", e.getMessage());
         }
@@ -269,7 +284,6 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
             Double longitude = mLastLocation.getLongitude();
             Log.d("location ", "Longitude : " + longitude + " , Latitude :" + latitude);
         } else {
-//            Toast.makeText(getApplicationContext(), "Last Location is null", Toast.LENGTH_LONG).show();
             Log.d("ERROR :", "ERROR");
         }
     }
@@ -322,7 +336,6 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     @Override
     protected void onResume() {
         super.onResume();
-        ;
         checkPlayServices();
     }
 
