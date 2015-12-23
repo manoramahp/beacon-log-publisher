@@ -92,7 +92,6 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-//        beaconManager.unbind(this);
     }
 
     /**
