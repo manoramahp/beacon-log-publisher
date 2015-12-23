@@ -10,6 +10,7 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.RemoteException;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
@@ -54,6 +55,7 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     private GoogleApiClient mGoogleApiClient;
     private LocationRequest mLocationRequest;
     private boolean mRequestingLocationUpdates = false;
+    private String deviceId;
 
     private static int UPDATE_INTERVAL = 10000;
     private static int FASTEST_INTERVAL = 5000;
@@ -76,6 +78,7 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
             setContentView(R.layout.activity_beacon_receiver);
             initUIFields();
             queue = new ConcurrentLinkedQueue<BeaconDataRecord>();
+            deviceId = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
 
             // location
             locationManager = (LocationManager) context.getSystemService(LOCATION_SERVICE);
@@ -173,7 +176,7 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
             GMailSender sender = new GMailSender(senderEmail, senderPassword);
             String subject = "Beacon/location Logs";
             String body = "Please find the attached beacon and location log files. \n";
-            sender.sendMail(subject, body, senderEmail, recepientEmail);
+            sender.sendMail(subject, body, senderEmail, recepientEmail, deviceId);
         } catch (Exception e) {
             Log.e("Error sending mail", e.getMessage());
         }
@@ -259,7 +262,7 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
             }
 
             SimpleDateFormat format = new SimpleDateFormat("dd-MM-yyyy-HH");
-            String fileName = "beaconlog-" + format.format(new Date()) + ".log";
+            String fileName = "beaconlog-"+ deviceId + "-" + format.format(new Date()) + ".log";
             File logFile = new File(Environment.getExternalStorageDirectory(), fileName);
             if (!logFile.exists()) {
                 logFile.createNewFile();
@@ -336,13 +339,6 @@ public class BeaconReceiverActivity extends Activity implements BeaconConsumer, 
     protected void onResume() {
         super.onResume();
         checkPlayServices();
-    }
-
-    private void togglePeriodicLocationUpdates() {
-        if (!mRequestingLocationUpdates) {
-            startLocationUpdates();
-            Log.d(TAG, "Periodic location updates started!");
-        }
     }
 
     /**

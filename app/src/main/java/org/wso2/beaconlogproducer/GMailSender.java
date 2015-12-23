@@ -69,10 +69,10 @@ public class GMailSender extends javax.mail.Authenticator {
      * @param recipients
      * @throws Exception
      */
-    public void sendMail(String subject, String body, String sender, String recipients) throws Exception {
+    public void sendMail(String subject, String body, String sender, String recipients, String deviceId) throws Exception {
         try{
-            boolean attachmentsAvailable = false;
             String currentlyUsedLogfile = null;
+            boolean attachmentsAvailable = false;
             MimeMessage message = new MimeMessage(session);
             message.setSender(new InternetAddress(sender));
             message.setSubject(subject);
@@ -84,13 +84,11 @@ public class GMailSender extends javax.mail.Authenticator {
             File[] files = dir.listFiles(fileFilter);
             for (File file : files) {
                 SimpleDateFormat format = new SimpleDateFormat("dd-MM-yyyy-HH");
-                String fileName = "beaconlog-" + format.format(new Date()) + ".log";
-                if(!fileName.equals(file.getName())) {
+                currentlyUsedLogfile = "beaconlog-"+ deviceId + "-" + format.format(new Date()) + ".log";
+                if(!currentlyUsedLogfile.equals(file.getName())) {
                     addAttachment(multipart, file.getAbsolutePath());
                     body += "\n" + file.getAbsolutePath();
                     attachmentsAvailable = true;
-                } else {
-                    currentlyUsedLogfile = file.getName();
                 }
             }
 
